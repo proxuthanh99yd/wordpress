@@ -67,9 +67,11 @@ Vào GitLab project → **Settings → CI/CD → Variables** → Expand
 
 8. **GOOGLE_CLIENT_ID**
    - Value: `YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com`
+   - **Lưu ý**: Thay thế bằng Google OAuth Client ID thực tế của bạn
 
 9. **GOOGLE_CLIENT_SECRET**
    - Value: `YOUR_GOOGLE_CLIENT_SECRET`
+   - **Lưu ý**: Thay thế bằng Google OAuth Client Secret thực tế của bạn
    - Masked: ✅
 
 10. **AUTH_SECRET**
