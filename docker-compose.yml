@@ -6,9 +6,10 @@ services:
     container_name: wordpress
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:9000:80"
     volumes:
       - ./public_html:/var/www/html
+      - ./php-uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${MYSQL_USER}

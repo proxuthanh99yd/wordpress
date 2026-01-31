@@ -20,4 +20,3 @@ define('WP_REDIS_PREFIX', 'wp_');
 
 // Optional: Enable Redis for object cache
 define('WP_CACHE', true);
-
