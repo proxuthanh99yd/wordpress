@@ -16,6 +16,24 @@ services:
       WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
       WORDPRESS_REDIS_HOST: redis
       WORDPRESS_REDIS_PORT: 6379
+      WP_SITE_URL: ${WP_SITE_URL:-}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-}
+      WORDPRESS_CONFIG_EXTRA: |
+        /* Reverse proxy: trust X-Forwarded-Proto so WP serves HTTPS URLs (chống redirect loop) */
+        if ( isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https' ) {
+            $$_SERVER['HTTPS'] = 'on';
+        }
+        /* Headless site URLs */
+        if ( getenv('WP_SITE_URL') ) {
+            define('WP_HOME', getenv('WP_SITE_URL'));
+            define('WP_SITEURL', getenv('WP_SITE_URL'));
+        }
+        /* Frontend origin dùng cho CORS mu-plugin */
+        if ( getenv('FRONTEND_ORIGIN') ) {
+            define('HEADLESS_FRONTEND_ORIGIN', getenv('FRONTEND_ORIGIN'));
+        }
+        /* Bảo mật: chặn sửa file plugin/theme trong admin */
+        define('DISALLOW_FILE_EDIT', true);
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s
