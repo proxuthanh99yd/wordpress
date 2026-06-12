@@ -4,7 +4,9 @@
  * Description: Gửi CORS headers cho REST API và WPGraphQL để frontend Next.js gọi cross-origin.
  *
  * Origin được phép lấy từ hằng HEADLESS_FRONTEND_ORIGIN (define qua WORDPRESS_CONFIG_EXTRA
- * từ biến môi trường FRONTEND_ORIGIN). KHÔNG dùng wildcard '*'.
+ * từ biến môi trường FRONTEND_ORIGIN). Hỗ trợ NHIỀU origin phân cách dấu phẩy:
+ *   FRONTEND_ORIGIN=https://food.example.com,https://staging.food.example.com
+ * KHÔNG dùng wildcard '*'.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,33 +14,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Origin frontend được phép, hoặc '' nếu chưa cấu hình.
+ * Danh sách origin được phép (đã trim, bỏ phần tử rỗng).
+ *
+ * @return string[]
  */
-function headless_allowed_origin() {
-	return defined( 'HEADLESS_FRONTEND_ORIGIN' ) ? HEADLESS_FRONTEND_ORIGIN : '';
-}
-
-/**
- * Origin của request hiện tại có khớp frontend không.
- */
-function headless_origin_matches() {
-	$allowed = headless_allowed_origin();
-	if ( ! $allowed ) {
-		return false;
+function headless_allowed_origins() {
+	if ( ! defined( 'HEADLESS_FRONTEND_ORIGIN' ) || ! HEADLESS_FRONTEND_ORIGIN ) {
+		return array();
 	}
-	$request_origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? $_SERVER['HTTP_ORIGIN'] : '';
-	return $request_origin === $allowed;
+	return array_values( array_filter( array_map( 'trim', explode( ',', HEADLESS_FRONTEND_ORIGIN ) ) ) );
 }
 
 /**
- * Gửi CORS headers cho REST/HTTP request và trả sớm cho preflight OPTIONS.
+ * Origin của request hiện tại nếu nằm trong danh sách cho phép, ngược lại ''.
+ */
+function headless_request_origin_if_allowed() {
+	$request_origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? $_SERVER['HTTP_ORIGIN'] : '';
+	if ( $request_origin && in_array( $request_origin, headless_allowed_origins(), true ) ) {
+		return $request_origin;
+	}
+	return '';
+}
+
+/**
+ * Gửi CORS headers cho REST request và trả sớm cho preflight OPTIONS.
  */
 function headless_send_cors_headers() {
-	if ( ! headless_origin_matches() ) {
+	$origin = headless_request_origin_if_allowed();
+	if ( ! $origin ) {
 		return;
 	}
 
-	$origin = headless_allowed_origin();
 	header( 'Access-Control-Allow-Origin: ' . $origin );
 	header( 'Access-Control-Allow-Credentials: true' );
 	header( 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, PATCH, DELETE' );
@@ -65,7 +71,7 @@ add_action(
 	20
 );
 
-// REST API: chỉ gửi CORS cho origin frontend đã khai báo.
+// REST API: chỉ gửi CORS cho origin nằm trong danh sách cho phép.
 add_filter(
 	'rest_pre_serve_request',
 	function ( $value ) {
@@ -76,13 +82,15 @@ add_filter(
 );
 
 // WPGraphQL (/graphql): mặc định plugin gửi Access-Control-Allow-Origin: *
-// → LUÔN ghi đè về origin frontend khi đã cấu hình (không chỉ khi origin khớp).
+// → LUÔN ghi đè khi đã cấu hình: origin của request nếu hợp lệ, ngược lại
+// origin đầu tiên trong danh sách (origin lạ sẽ fail CORS check phía browser).
 add_filter(
 	'graphql_response_headers_to_send',
 	function ( $headers ) {
-		$allowed = headless_allowed_origin();
-		if ( $allowed ) {
-			$headers['Access-Control-Allow-Origin']      = $allowed;
+		$origins = headless_allowed_origins();
+		if ( $origins ) {
+			$matched = headless_request_origin_if_allowed();
+			$headers['Access-Control-Allow-Origin']      = $matched ? $matched : $origins[0];
 			$headers['Access-Control-Allow-Credentials'] = 'true';
 			$headers['Access-Control-Allow-Headers']     = 'Authorization, Content-Type';
 			$headers['Vary']                             = 'Origin';
