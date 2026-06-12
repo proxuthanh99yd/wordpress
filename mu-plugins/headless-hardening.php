@@ -9,7 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Tắt XML-RPC (không cần cho headless, hay bị brute-force/pingback DDoS).
+// Chặn hẳn XML-RPC (không cần cho headless, hay bị brute-force/pingback DDoS).
+// Lưu ý: filter xmlrpc_enabled KHÔNG đủ — nó chỉ tắt các method cần auth,
+// system.listMethods... vẫn trả lời. Chặn từ tầng request:
+if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
+	http_response_code( 403 );
+	exit( 'XML-RPC disabled.' );
+}
 add_filter( 'xmlrpc_enabled', '__return_false' );
 
 // Gỡ X-Pingback header.
