@@ -8,6 +8,7 @@ services:
     volumes:
       - ./public_html:/var/www/html
       - ./php-uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+      - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${MYSQL_USER}
