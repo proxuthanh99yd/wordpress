@@ -1,6 +1,6 @@
 services:
   wordpress:
-    image: wordpress:latest
+    image: wordpress:6.7-php8.3-apache
     container_name: food-inno
     restart: unless-stopped
     ports:
@@ -35,7 +35,8 @@ services:
         /* Bảo mật: chặn sửa file plugin/theme trong admin */
         define('DISALLOW_FILE_EDIT', true);
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      # Image WordPress không chắc có `curl`; dùng php (luôn có) để kiểm tra port 80
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"localhost\", 80) ? 0 : 1);'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -69,12 +70,11 @@ services:
       - food-inno-network
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: food-inno-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - ./redis-data:/data
+    # Object cache là ephemeral: bỏ AOF, giới hạn RAM và evict LRU thay vì phình/OOM
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly no
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
