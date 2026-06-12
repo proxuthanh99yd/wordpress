@@ -1,18 +1,18 @@
 server {
     listen 80;
-    server_name 360home.okhub-tech.com www.360home.okhub-tech.com;
+    server_name food.innojsc.com www.cms.food.innojsc.com;
     
     # Increase upload size for WordPress
     client_max_body_size 512M;
     
     # Logging
-    access_log /var/log/nginx/old-360home-access.log;
-    error_log /var/log/nginx/old-360home-error.log;
+    access_log /var/log/nginx/food.innojsc-access.log;
+    error_log /var/log/nginx/food.innojsc-error.log;
     
     # Timeout settings
-    proxy_connect_timeout 60s;
-    proxy_send_timeout 60s;
-    proxy_read_timeout 60s;
+    proxy_connect_timeout 180s;
+    proxy_send_timeout 180s;
+    proxy_read_timeout 180s;
     
     # Reverse proxy all requests to WordPress container (running on localhost:8080)
     location / {

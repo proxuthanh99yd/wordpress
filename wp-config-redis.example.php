@@ -1,10 +1,12 @@
 <?php
+
 /**
  * Redis Object Cache Configuration
  * 
  * Thêm các dòng này vào file wp-config.php của bạn
- * Đặt TRƯỚC dòng "/* That's all, stop editing! */"
- */
+ * Đặt TRƯỚC dòng "/* That's all, stop editing! */
+
+
 
 // Redis configuration
 define('WP_REDIS_HOST', 'redis');
