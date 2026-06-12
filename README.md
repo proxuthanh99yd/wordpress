@@ -7,17 +7,31 @@ bảo mật headless.
 ## Quick start
 
 ```bash
-# 1. Sinh cấu hình theo tên project (tạo .env + docker-compose.yml + nginx conf)
-./setup.sh
-
-# 2. Khởi động
-docker-compose up -d
-
-# 3. Tự động cài WordPress core + permalink + plugins (Redis Object Cache, WPGraphQL)
-./wp-init.sh
+./setup.sh    # mở dashboard — cài đặt và quản lý mọi thứ từ đây
 ```
 
-WordPress chạy tại `http://127.0.0.1:9000` (hoặc port bạn chọn trong setup.sh).
+Lần đầu: chọn **1) Cài đặt mới** (wizard) → **5) Khởi động** → **2) Cài WordPress
++ plugins**. Xong — WordPress chạy tại `http://127.0.0.1:9000` (hoặc port đã chọn).
+
+### Dashboard
+
+```
+ ── Cài đặt ──────────────────        ── Vận hành ─────────────────
+  1) Cài đặt mới (wizard)              5) Khởi động (up -d)
+  2) Cài WordPress + plugins           6) Dừng (down)
+  3) Nginx + SSL (certbot)             7) Restart
+  4) Sửa cấu hình                      8) Logs
+                                       9) Cập nhật images
+ ── Dữ liệu / Công cụ ────────────────────────────────────────────
+  b) Backup    r) Restore    w) WP-CLI    s) Trạng thái    0) Thoát
+```
+
+Panel đầu dashboard hiện health từng container (chấm màu), URL, CORS origin.
+Chạy thẳng 1 tác vụ không vào menu (dùng cho script/cron):
+
+```bash
+./setup.sh wizard|up|down|restart|status|backup|init|nginx
+```
 
 ### wp-init.sh làm gì
 
@@ -30,32 +44,32 @@ Chạy sau `docker-compose up -d`, idempotent (chạy lại an toàn):
    mặc định làm REST `/wp-json` trả 404
 5. Cài + kích hoạt **Redis Object Cache** (tự enable drop-in) và **WPGraphQL**
 
-### setup.sh làm gì
-
-Script hỏi lần lượt rồi tự sinh toàn bộ cấu hình:
+### Wizard (menu 1) hỏi gì
 
 | Câu hỏi | Dùng để |
 |---|---|
-| Tên project | Container names (`<project>`, `<project>-db`, `<project>-redis`), network, DB name/user, table prefix |
+| Tên project | Container names (`<project>`, `<project>-db`...), network, DB name/user, table prefix |
 | Domain (vd `cms.domain.com.vn`) | Render nginx config `<domain>.conf`; bỏ trống nếu chỉ chạy local |
 | Cổng host (mặc định 9000) | Port expose WordPress trên `127.0.0.1` |
 | WP_SITE_URL | URL công khai của CMS (mặc định `https://<domain>`) |
 | FRONTEND_ORIGIN | Origin Next.js được phép gọi API (CORS) |
 
-Mật khẩu DB được sinh ngẫu nhiên. Trên VPS có nginx, script sẽ hỏi để tự:
+**Mục nâng cao** (`Tuỳ chỉnh nâng cao? [y/N]` — Enter là dùng toàn bộ mặc định):
+WordPress image tag, upload limit (đồng bộ PHP + nginx), PHP memory/timezone,
+Redis maxmemory, table prefix, WP-Cron interval, có/không `www.` trong nginx+SSL.
+Flow mặc định **không** đụng tới `php-uploads.ini`.
+
+Mật khẩu DB + 8 salts sinh ngẫu nhiên. Trên VPS có nginx, wizard hỏi để tự:
 copy conf vào `sites-available/`, symlink sang `sites-enabled/`, `nginx -t`,
 reload, và chạy `certbot --nginx` cấp SSL (certbot tự thêm block 443).
 
 > ⚠️ **Không ghi đè `.env` sau khi đã `up` lần đầu** — MariaDB chỉ nhận user/password
 > ở lần khởi tạo `mysql-data/` đầu tiên; đổi mật khẩu sau đó sẽ gây lỗi đăng nhập DB.
 
-## Sau khi WordPress chạy lần đầu
+### Restore (menu r)
 
-1. Cài đặt WordPress qua trình duyệt như bình thường.
-2. Cài plugin **Redis Object Cache** (Till Krüss) → Settings → Redis → **Enable Object Cache**.
-   Các hằng `WP_REDIS_*` đã được inject sẵn qua `WORDPRESS_CONFIG_EXTRA`, chỉ cần Enable
-   để tạo drop-in `object-cache.php`. Kiểm tra trạng thái "Connected".
-3. Cài **WPGraphQL** nếu frontend dùng GraphQL (endpoint `/graphql`).
+Liệt kê backup trong `./backups/`, chọn bản → gõ `yes` xác nhận (ghi đè toàn bộ DB!)
+→ tự flush Redis cache sau restore, hỏi restore kèm uploads.
 
 ## Kiến trúc
 
