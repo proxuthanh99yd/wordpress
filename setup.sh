@@ -213,6 +213,8 @@ services:
         }
         /* Bảo mật: chặn sửa file plugin/theme trong admin */
         define('DISALLOW_FILE_EDIT', true);
+        /* WP-Cron tách khỏi request người dùng — service wpcron gọi định kỳ */
+        define('DISABLE_WP_CRON', true);
     healthcheck:
       # Image WordPress không chắc có `curl`; dùng php (luôn có) để kiểm tra port 80
       test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"localhost\", 80) ? 0 : 1);'"]
@@ -245,6 +247,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - %%NETWORK%%
+
+  wpcron:
+    image: alpine:3.21
+    container_name: %%WP_NAME%%-wpcron
+    restart: unless-stopped
+    # WP-Cron đã tắt khỏi request người dùng (DISABLE_WP_CRON) — sidecar này
+    # gọi wp-cron.php mỗi 5 phút để scheduled posts/cron jobs chạy đúng giờ
+    command: /bin/sh -c 'while true; do wget -q -T 30 -O /dev/null "http://wordpress/wp-cron.php?doing_wp_cron" 2>/dev/null || true; sleep 300; done'
+    depends_on:
+      wordpress:
+        condition: service_healthy
     networks:
       - %%NETWORK%%
 
