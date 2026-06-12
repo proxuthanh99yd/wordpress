@@ -60,19 +60,24 @@ reload, và chạy `certbot --nginx` cấp SSL (certbot tự thêm block 443).
 ## Kiến trúc
 
 ```
-┌──────────────────── <project>-network (bridge) ─────────────────────┐
-│                                                                      │
-│  wordpress (<project>)     db (<project>-db)    redis (<project>-redis)
-│  127.0.0.1:<port> → :80   internal :3306        internal :6379       │
-│  ./public_html             ./mysql-data          (cache, không persist)
-└──────────────────────────────────────────────────────────────────────┘
+┌───────────────────────── <project>-network (bridge) ─────────────────────────┐
+│                                                                               │
+│  wordpress (<project>)     db (<project>-db)    redis (<project>-redis)       │
+│  127.0.0.1:<port> → :80   internal :3306        internal :6379                │
+│  ./public_html             ./mysql-data          (cache, không persist)       │
+│                                                                               │
+│  wpcron (<project>-wpcron) — gọi wp-cron.php mỗi 5 phút (DISABLE_WP_CRON)    │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - Image theo [official WordPress](https://hub.docker.com/_/wordpress): `wordpress:7.0-php8.3-apache`
   (pin minor — patch release tự cập nhật khi pull).
 - Chỉ WordPress expose ra host (bind `127.0.0.1`); DB và Redis internal-only.
 - Redis chạy chế độ object cache: `maxmemory 256mb`, evict `allkeys-lru`, không AOF.
-- Healthcheck đủ 3 service; WordPress chỉ start sau khi DB + Redis healthy.
+- Healthcheck đủ 3 service chính; WordPress chỉ start sau khi DB + Redis healthy.
+- **WP-Cron**: đã tắt khỏi request người dùng (`DISABLE_WP_CRON`) — sidecar `wpcron`
+  (alpine) gọi `wp-cron.php` mỗi 5 phút, scheduled posts/cron jobs chạy đúng giờ
+  kể cả khi site không có traffic.
 
 ## Headless — CORS & bảo mật
 
@@ -81,6 +86,8 @@ không cần bật trong admin):
 
 - **`headless-cors.php`** — gửi CORS headers cho REST API (`/wp-json`) và WPGraphQL
   (`/graphql`) theo biến `FRONTEND_ORIGIN` trong `.env`. Không dùng wildcard `*`.
+  Hỗ trợ nhiều origin phân cách dấu phẩy: `FRONTEND_ORIGIN=https://prod.com,https://staging.com`.
+  Đồng thời gỡ CORS mặc định quá mở của core (`rest_send_cors_headers` cho phép mọi origin).
 - **`headless-hardening.php`** — tắt XML-RPC, chặn liệt kê users qua REST
   (`/wp/v2/users` với khách chưa đăng nhập), ẩn version WordPress, gỡ pingback header.
 
@@ -101,7 +108,7 @@ Ngoài ra `WORDPRESS_CONFIG_EXTRA` (trong docker-compose.yml) đã:
 | `WORDPRESS_AUTH_KEY` … `WORDPRESS_NONCE_SALT` | 8 salts/keys — **bắt buộc**, sinh bởi `setup.sh` (compose từ chối start nếu thiếu). Cố định qua `.env` để session không bị invalidate khi recreate container |
 | `WORDPRESS_DEBUG` | Đặt `1` để bật `WP_DEBUG` (mặc định tắt) |
 | `WP_SITE_URL` | URL công khai → `WP_HOME`/`WP_SITEURL` |
-| `FRONTEND_ORIGIN` | Origin Next.js được phép CORS |
+| `FRONTEND_ORIGIN` | Origin Next.js được phép CORS — nhiều origin phân cách dấu phẩy |
 
 ## Cấu hình PHP (`php-uploads.ini`)
 
@@ -127,6 +134,30 @@ sudo cp <domain>.conf /etc/nginx/sites-available/
 sudo ln -s /etc/nginx/sites-available/<domain>.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d <domain> -d www.<domain>   # tự thêm block 443 + redirect
+```
+
+## Backup
+
+```bash
+./backup.sh             # dump database vào ./backups/db-<timestamp>.sql.gz
+./backup.sh --uploads   # + tar wp-content/uploads
+KEEP=30 ./backup.sh     # giữ 30 bản gần nhất (mặc định 14, tự xoá bản cũ hơn)
+```
+
+Dump được verify (`gzip -t` + kích thước) trước khi báo thành công. Chạy định kỳ
+trên VPS:
+
+```bash
+# crontab -e — backup 3h sáng hàng ngày
+0 3 * * * /opt/<project>/backup.sh --uploads >> /var/log/wp-backup.log 2>&1
+```
+
+Khôi phục:
+
+```bash
+gunzip -c backups/db-<timestamp>.sql.gz | docker compose exec -T db sh -c \
+  'mariadb -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+tar -xzf backups/uploads-<timestamp>.tar.gz -C public_html/wp-content/
 ```
 
 ## Lệnh thường dùng
@@ -167,4 +198,4 @@ curl -s http://127.0.0.1:9000/xmlrpc.php              # → XML-RPC disabled
 ## Dữ liệu (git-ignored)
 
 `mysql-data/`, `public_html/wp-content/uploads/`, `public_html/wp-content/cache/`,
-`.env`, `*.conf` — dữ liệu persistent / per-deploy, không track trong git.
+`backups/`, `.env`, `*.conf` — dữ liệu persistent / per-deploy, không track trong git.

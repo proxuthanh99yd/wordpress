@@ -75,7 +75,11 @@ Alternatively, copy `env.example` to `.env` manually before starting. Required v
 - **`setup.sh`** — Generator: prompts for project name + domain, renders `docker-compose.yml`, `.env` (random passwords), nginx `<domain>.conf`; on a VPS optionally installs the nginx conf (sites-available + symlink) and runs certbot
 - **`docker-compose.yml`** — Service definitions, volumes, network. `WORDPRESS_CONFIG_EXTRA` injects: `WP_REDIS_*` constants (Redis Object Cache plugin), X-Forwarded-Proto trust (no redirect loop behind HTTPS proxy), `WP_HOME`/`WP_SITEURL` from `WP_SITE_URL`, `DISALLOW_FILE_EDIT`
 - **`php-uploads.ini`** — PHP tuning: 512M upload/post/memory limit, 600s max execution, OPCache enabled
-- **`mu-plugins/`** — Must-use plugins mounted read-only into the container: `headless-cors.php` (CORS for REST + WPGraphQL, driven by `FRONTEND_ORIGIN`) and `headless-hardening.php` (disable XML-RPC, block REST user enumeration, hide WP version)
+- **`wp-init.sh`** — Post-`up` automation: waits for healthy, installs WP-CLI into the container, runs `wp core install`, sets `/%postname%/` permalinks (plain permalinks break `/wp-json`), installs + activates Redis Object Cache (enables drop-in) and WPGraphQL. Idempotent.
+- **`backup.sh`** — DB dump (verified, gzipped) into `./backups/`, `--uploads` flag tars uploads, `KEEP=N` retention (default 14)
+- **`mu-plugins/`** — Must-use plugins mounted read-only into the container: `headless-cors.php` (CORS for REST + WPGraphQL driven by `FRONTEND_ORIGIN`, supports comma-separated origins, removes core's permissive `rest_send_cors_headers`) and `headless-hardening.php` (block XML-RPC requests with 403, block REST user enumeration, hide WP version)
+
+A 4th compose service `wpcron` (alpine sidecar) hits `wp-cron.php` every 5 minutes; `DISABLE_WP_CRON` is set in `WORDPRESS_CONFIG_EXTRA`.
 
 All user-facing docs are consolidated in **`README.md`** (Vietnamese) — do not create additional README-*.md files.
 
