@@ -136,6 +136,11 @@ WORDPRESS_NONCE_SALT=$(rand 64)
 WP_SITE_URL=$SITE_URL
 FRONTEND_ORIGIN=$FRONTEND
 ENV
+	# Guard: random generator fail sẽ tạo giá trị rỗng (password/salt) — chặn ngay
+	if grep -qE '^[A-Z_]+=$' .env; then
+		err "Lỗi: .env có giá trị rỗng (không sinh được chuỗi ngẫu nhiên?). Kiểm tra /dev/urandom."
+		exit 1
+	fi
 	ok "Đã ghi .env"
 fi
 
@@ -369,4 +374,4 @@ fi
 info ""
 ok "Hoàn tất. Tiếp theo:"
 echo "  1. docker-compose up -d"
-echo "  2. Cài plugin Redis Object Cache (+ Enable) và WPGraphQL — xem README-REDIS.md"
+echo "  2. ./wp-init.sh   # tự cài WordPress core + permalink + Redis Object Cache + WPGraphQL"
