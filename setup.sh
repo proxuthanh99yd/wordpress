@@ -48,11 +48,19 @@ fi
 # slug cho định danh SQL (a-z0-9_)
 SLUG="$(printf '%s' "$PROJECT" | tr '-' '_' | tr -cd 'a-z0-9_')"
 
+read -rp "Domain của CMS (vd: cms.domain.com.vn, bỏ trống nếu chỉ chạy local): " DOMAIN
+DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9.-')"
+
 read -rp "Cổng host expose WordPress [9000]: " HOST_PORT
 HOST_PORT="${HOST_PORT:-9000}"
 
-read -rp "WP_SITE_URL (URL công khai của CMS) [http://127.0.0.1:${HOST_PORT}]: " SITE_URL
-SITE_URL="${SITE_URL:-http://127.0.0.1:${HOST_PORT}}"
+if [[ -n "$DOMAIN" ]]; then
+	DEFAULT_SITE_URL="https://${DOMAIN}"
+else
+	DEFAULT_SITE_URL="http://127.0.0.1:${HOST_PORT}"
+fi
+read -rp "WP_SITE_URL (URL công khai của CMS) [${DEFAULT_SITE_URL}]: " SITE_URL
+SITE_URL="${SITE_URL:-$DEFAULT_SITE_URL}"
 
 read -rp "FRONTEND_ORIGIN (origin Next.js cho CORS) [http://localhost:3000]: " FRONTEND
 FRONTEND="${FRONTEND:-http://localhost:3000}"
@@ -72,6 +80,7 @@ info ""
 info "Sẽ tạo cấu hình với:"
 cat <<SUMMARY
   Project          : $PROJECT
+  Domain           : ${DOMAIN:-"(local — bỏ qua nginx/certbot)"}
   Containers       : $WP_NAME, $DB_CONTAINER, $REDIS_CONTAINER
   Network          : $NETWORK
   Host port        : 127.0.0.1:$HOST_PORT -> :80
@@ -226,6 +235,108 @@ networks:
     driver: bridge
 TEMPLATE
 	ok "Đã ghi docker-compose.yml"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Sinh nginx config <domain>.conf (chỉ khi có domain)
+# ---------------------------------------------------------------------------
+NGINX_CONF=""
+if [[ -n "$DOMAIN" ]]; then
+	NGINX_CONF="${DOMAIN}.conf"
+	if [[ -f "$NGINX_CONF" ]] && ! confirm "Ghi đè ${NGINX_CONF}?"; then
+		err "Bỏ qua ${NGINX_CONF}."
+	else
+		# Chỉ block :80 — certbot --nginx sẽ tự thêm block 443 + redirect khi chạy.
+		cat <<NGINX | sed \
+			-e "s|%%DOMAIN%%|${DOMAIN}|g" \
+			-e "s|%%HOST_PORT%%|${HOST_PORT}|g" \
+			> "$NGINX_CONF"
+server {
+    listen 80;
+    server_name %%DOMAIN%% www.%%DOMAIN%%;
+
+    # Increase upload size for WordPress
+    client_max_body_size 512M;
+
+    # Logging
+    access_log /var/log/nginx/%%DOMAIN%%-access.log;
+    error_log /var/log/nginx/%%DOMAIN%%-error.log;
+
+    # Timeout settings
+    proxy_connect_timeout 180s;
+    proxy_send_timeout 180s;
+    proxy_read_timeout 180s;
+
+    # Reverse proxy all requests to WordPress container
+    location / {
+        proxy_pass http://127.0.0.1:%%HOST_PORT%%;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Forwarded-Port \$server_port;
+
+        # Buffering settings
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+        proxy_busy_buffers_size 8k;
+    }
+
+    # Static files caching
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot|webp)\$ {
+        proxy_pass http://127.0.0.1:%%HOST_PORT%%;
+        proxy_set_header Host \$host;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+NGINX
+		ok "Đã ghi ${NGINX_CONF}"
+	fi
+fi
+
+# ---------------------------------------------------------------------------
+# 5. Cài vào nginx (sites-available + symlink) và chạy certbot — chỉ trên VPS
+# ---------------------------------------------------------------------------
+if [[ -n "$DOMAIN" && -n "$NGINX_CONF" && -f "$NGINX_CONF" ]]; then
+	if [[ -d /etc/nginx/sites-available ]]; then
+		if confirm "Cài ${NGINX_CONF} vào nginx (sites-available + symlink) và reload?"; then
+			SUDO=""
+			[[ "$(id -u)" != "0" ]] && SUDO="sudo"
+			$SUDO cp "$NGINX_CONF" "/etc/nginx/sites-available/${NGINX_CONF}"
+			$SUDO ln -sf "/etc/nginx/sites-available/${NGINX_CONF}" "/etc/nginx/sites-enabled/${NGINX_CONF}"
+			if $SUDO nginx -t; then
+				$SUDO systemctl reload nginx
+				ok "nginx đã reload với ${NGINX_CONF}"
+			else
+				err "nginx -t thất bại — đã KHÔNG reload. Kiểm tra config rồi reload thủ công."
+				err "Gỡ symlink nếu cần: $SUDO rm /etc/nginx/sites-enabled/${NGINX_CONF}"
+				exit 1
+			fi
+
+			if command -v certbot >/dev/null 2>&1; then
+				if confirm "Chạy certbot cấp SSL cho ${DOMAIN} (+ www.${DOMAIN})?"; then
+					# certbot --nginx tự thêm block 443 + redirect vào conf
+					$SUDO certbot --nginx -d "$DOMAIN" -d "www.${DOMAIN}" || {
+						err "certbot thất bại (DNS chưa trỏ về server? port 80 chưa mở?)."
+						err "Chạy lại sau: $SUDO certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+					}
+				fi
+			else
+				info "Không tìm thấy certbot. Cài rồi chạy:"
+				echo "  sudo apt install certbot python3-certbot-nginx"
+				echo "  sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+			fi
+		fi
+	else
+		info "Không thấy /etc/nginx/sites-available (chạy local?). Khi deploy lên VPS:"
+		echo "  sudo cp $NGINX_CONF /etc/nginx/sites-available/"
+		echo "  sudo ln -s /etc/nginx/sites-available/$NGINX_CONF /etc/nginx/sites-enabled/"
+		echo "  sudo nginx -t && sudo systemctl reload nginx"
+		echo "  sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+	fi
 fi
 
 info ""
