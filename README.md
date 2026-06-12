@@ -13,11 +13,22 @@ bảo mật headless.
 # 2. Khởi động
 docker-compose up -d
 
-# 3. Kiểm tra cả 3 service đều healthy
-docker-compose ps
+# 3. Tự động cài WordPress core + permalink + plugins (Redis Object Cache, WPGraphQL)
+./wp-init.sh
 ```
 
 WordPress chạy tại `http://127.0.0.1:9000` (hoặc port bạn chọn trong setup.sh).
+
+### wp-init.sh làm gì
+
+Chạy sau `docker-compose up -d`, idempotent (chạy lại an toàn):
+
+1. Chờ container wordpress healthy
+2. Cài WP-CLI vào container
+3. `wp core install` — hỏi title/admin/email, password tự sinh nếu để trống
+4. Đặt permalink `/%postname%/` — **bắt buộc cho headless**: permalink "plain"
+   mặc định làm REST `/wp-json` trả 404
+5. Cài + kích hoạt **Redis Object Cache** (tự enable drop-in) và **WPGraphQL**
 
 ### setup.sh làm gì
 
