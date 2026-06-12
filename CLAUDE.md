@@ -43,8 +43,8 @@ WordPress is accessible at `http://127.0.0.1:9000` after starting.
 │                                                                     │
 │  wordpress (food-inno)    db (food-inno-db)    redis (food-inno-redis)
 │  127.0.0.1:9000 → :80    internal :3306        internal :6379      │
-│  ./public_html            ./mysql-data          ./redis-data        │
-│  depends_on: db, redis                          --appendonly yes    │
+│  ./public_html            ./mysql-data          ephemeral cache     │
+│  depends_on: db, redis                          maxmemory 256m lru  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,16 +72,17 @@ Alternatively, copy `env.example` to `.env` manually before starting. Required v
 
 ## Key Configuration Files
 
-- **`docker-compose.yml`** — Service definitions, volumes, network
-- **`php-uploads.ini`** — PHP tuning: 512M upload/memory limit, 600s max execution, OPCache enabled
-- **`wp-config-redis.example.php`** — Redis object cache config to add to `wp-config.php`
-- **`nginx-wordpress.conf.example`** — Optional Nginx reverse proxy for production (domain: food.innojsc.com)
+- **`setup.sh`** — Generator: prompts for project name + domain, renders `docker-compose.yml`, `.env` (random passwords), nginx `<domain>.conf`; on a VPS optionally installs the nginx conf (sites-available + symlink) and runs certbot
+- **`docker-compose.yml`** — Service definitions, volumes, network. `WORDPRESS_CONFIG_EXTRA` injects: `WP_REDIS_*` constants (Redis Object Cache plugin), X-Forwarded-Proto trust (no redirect loop behind HTTPS proxy), `WP_HOME`/`WP_SITEURL` from `WP_SITE_URL`, `DISALLOW_FILE_EDIT`
+- **`php-uploads.ini`** — PHP tuning: 512M upload/post/memory limit, 600s max execution, OPCache enabled
 - **`mu-plugins/`** — Must-use plugins mounted read-only into the container: `headless-cors.php` (CORS for REST + WPGraphQL, driven by `FRONTEND_ORIGIN`) and `headless-hardening.php` (disable XML-RPC, block REST user enumeration, hide WP version)
 
-## Git-ignored Data Directories
+All user-facing docs are consolidated in **`README.md`** (Vietnamese) — do not create additional README-*.md files.
 
-`mysql-data/`, `redis-data/`, `public_html/wp-content/uploads/`, `public_html/wp-content/cache/` — these are persistent Docker volumes, not tracked in git.
+## Post-install (manual, after first `docker-compose up`)
 
-## Deployment
+Install plugins: **Redis Object Cache** (then click Enable Object Cache to create the `object-cache.php` drop-in) and **WPGraphQL** (if the frontend uses GraphQL).
 
-Build and deploy docs are in `BUILD.md` (Vietnamese) and `CI_CD_SETUP.md`. Deployment target is a VPS at `/opt/360home/` using GitLab Container Registry, with SSH on port 8686. See `CI_CD_SAFETY.md` for container safety guidelines.
+## Git-ignored Files
+
+`mysql-data/`, `public_html/wp-content/uploads/`, `public_html/wp-content/cache/`, `.env`, `*.conf` (nginx configs generated per-deploy by setup.sh) — not tracked in git.

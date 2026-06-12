@@ -11,7 +11,7 @@ redis-data/
 public_html/wp-content/uploads/
 public_html/wp-content/cache/
 
-# Nginx config sinh bởi setup.sh (per-deploy, template là nginx-wordpress.conf.example)
+# Nginx config sinh bởi setup.sh (per-deploy)
 *.conf
 
 # Logs
