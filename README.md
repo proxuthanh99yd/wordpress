@@ -57,6 +57,8 @@ reload, và chạy `certbot --nginx` cấp SSL (certbot tự thêm block 443).
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
+- Image theo [official WordPress](https://hub.docker.com/_/wordpress): `wordpress:7.0-php8.3-apache`
+  (pin minor — patch release tự cập nhật khi pull).
 - Chỉ WordPress expose ra host (bind `127.0.0.1`); DB và Redis internal-only.
 - Redis chạy chế độ object cache: `maxmemory 256mb`, evict `allkeys-lru`, không AOF.
 - Healthcheck đủ 3 service; WordPress chỉ start sau khi DB + Redis healthy.
@@ -85,6 +87,8 @@ Ngoài ra `WORDPRESS_CONFIG_EXTRA` (trong docker-compose.yml) đã:
 | `MYSQL_ROOT_PASSWORD` | Mật khẩu root MariaDB |
 | `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD` | Database WordPress |
 | `WORDPRESS_TABLE_PREFIX` | Prefix bảng (vd `foodinno_`) |
+| `WORDPRESS_AUTH_KEY` … `WORDPRESS_NONCE_SALT` | 8 salts/keys — **bắt buộc**, sinh bởi `setup.sh` (compose từ chối start nếu thiếu). Cố định qua `.env` để session không bị invalidate khi recreate container |
+| `WORDPRESS_DEBUG` | Đặt `1` để bật `WP_DEBUG` (mặc định tắt) |
 | `WP_SITE_URL` | URL công khai → `WP_HOME`/`WP_SITEURL` |
 | `FRONTEND_ORIGIN` | Origin Next.js được phép CORS |
 

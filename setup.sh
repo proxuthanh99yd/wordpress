@@ -122,6 +122,16 @@ MYSQL_PASSWORD=$DB_PW
 # WordPress Table Prefix
 WORDPRESS_TABLE_PREFIX=$PREFIX
 
+# WordPress salts/keys (sinh ngẫu nhiên — đổi sẽ invalidate mọi session đang đăng nhập)
+WORDPRESS_AUTH_KEY=$(rand 64)
+WORDPRESS_SECURE_AUTH_KEY=$(rand 64)
+WORDPRESS_LOGGED_IN_KEY=$(rand 64)
+WORDPRESS_NONCE_KEY=$(rand 64)
+WORDPRESS_AUTH_SALT=$(rand 64)
+WORDPRESS_SECURE_AUTH_SALT=$(rand 64)
+WORDPRESS_LOGGED_IN_SALT=$(rand 64)
+WORDPRESS_NONCE_SALT=$(rand 64)
+
 # Headless CMS
 WP_SITE_URL=$SITE_URL
 FRONTEND_ORIGIN=$FRONTEND
@@ -144,9 +154,11 @@ else
 		-e "s|%%NETWORK%%|${NETWORK}|g" \
 		-e "s|%%HOST_PORT%%|${HOST_PORT}|g" \
 		> docker-compose.yml
+# Tham khảo image chính thức: https://hub.docker.com/_/wordpress
 services:
   wordpress:
-    image: wordpress:6.7-php8.3-apache
+    # PHP 8.3 là default của image chính thức; pin minor để patch release tự cập nhật
+    image: wordpress:7.0-php8.3-apache
     container_name: %%WP_NAME%%
     restart: unless-stopped
     ports:
@@ -161,6 +173,17 @@ services:
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG:-}
+      # Salts/keys cố định qua .env (sinh bởi setup.sh) — session không bị
+      # invalidate khi recreate container. :? bắt buộc có, tránh salt rỗng.
+      WORDPRESS_AUTH_KEY: ${WORDPRESS_AUTH_KEY:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_SECURE_AUTH_KEY: ${WORDPRESS_SECURE_AUTH_KEY:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_LOGGED_IN_KEY: ${WORDPRESS_LOGGED_IN_KEY:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_NONCE_KEY: ${WORDPRESS_NONCE_KEY:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_AUTH_SALT: ${WORDPRESS_AUTH_SALT:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_SECURE_AUTH_SALT: ${WORDPRESS_SECURE_AUTH_SALT:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_LOGGED_IN_SALT: ${WORDPRESS_LOGGED_IN_SALT:?thiếu salt — chạy ./setup.sh}
+      WORDPRESS_NONCE_SALT: ${WORDPRESS_NONCE_SALT:?thiếu salt — chạy ./setup.sh}
       WP_SITE_URL: ${WP_SITE_URL:-}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-}
       WORDPRESS_CONFIG_EXTRA: |
