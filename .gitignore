@@ -14,6 +14,9 @@ public_html/wp-content/cache/
 # Nginx config sinh bởi setup.sh (per-deploy)
 *.conf
 
+# Backups (sinh bởi backup.sh)
+backups/
+
 # Logs
 *.log
 
