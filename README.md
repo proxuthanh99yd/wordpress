@@ -71,6 +71,67 @@ reload, và chạy `certbot --nginx` cấp SSL (certbot tự thêm block 443).
 Liệt kê backup trong `./backups/`, chọn bản → gõ `yes` xác nhận (ghi đè toàn bộ DB!)
 → tự flush Redis cache sau restore, hỏi restore kèm uploads.
 
+## Workflow tạo site mới
+
+### A. Local (dev)
+
+```bash
+# 1. Clone repo về thư mục mới (mỗi site = 1 thư mục riêng)
+git clone <repo-url> my-new-site && cd my-new-site
+
+# 2. Mở dashboard
+./setup.sh
+```
+
+Trong dashboard:
+
+| Bước | Menu | Nhập gì |
+|---|---|---|
+| 1 | `1) Cài đặt mới` | Tên project (vd `my-site`) → domain **bỏ trống** → port (vd `9001` nếu 9000 đã dùng) → Enter hết phần còn lại → nâng cao: `n` |
+| 2 | `5) Khởi động` | Chờ 4 container healthy (~30s, lần đầu pull image lâu hơn) |
+| 3 | `2) Cài WordPress + plugins` | Site title, admin user/email; password để trống sẽ tự sinh — **lưu lại ngay** |
+
+Kiểm tra: Admin `http://127.0.0.1:9001/wp-admin/` · REST `/wp-json/` · GraphQL `/graphql`.
+Next.js local (`http://localhost:3000`) gọi API được luôn — CORS mặc định trỏ về đó.
+
+### B. Production (VPS)
+
+```bash
+# 0. Chuẩn bị: DNS trỏ cms.domain.com.vn về IP VPS TRƯỚC (certbot cần)
+ssh vps && cd /opt && git clone <repo-url> my-new-site && cd my-new-site
+./setup.sh
+```
+
+| Bước | Menu | Nhập gì |
+|---|---|---|
+| 1 | `1) Cài đặt mới` | Tên project → **domain** `cms.domain.com.vn` → port (vd `9001`) → `WP_SITE_URL` Enter (tự ra `https://<domain>`) → `FRONTEND_ORIGIN` = origin Next.js thật |
+| 2 | *(wizard tự tiếp)* | Bước 5/5: cài nginx conf + symlink + reload → `y`; chạy certbot → `y` |
+| 3 | `5) Khởi động` | Chờ healthy |
+| 4 | `2) Cài WordPress + plugins` | Như local |
+| 5 | Thoát dashboard | Thêm cron backup: `crontab -e` → `0 3 * * * /opt/my-new-site/backup.sh --uploads >> /var/log/wp-backup.log 2>&1` |
+
+### Những thứ KHÔNG phải làm (đã tự động)
+
+- ❌ Tạo DB/user/password — wizard sinh ngẫu nhiên
+- ❌ Sửa wp-config (Redis, salts, proxy HTTPS, CORS) — inject qua compose
+- ❌ Đổi permalink để `/wp-json` chạy — wp-init tự đặt `/%postname%/`
+- ❌ Cài/enable Redis Object Cache, WPGraphQL — wp-init tự cài
+- ❌ Cấu hình WP-Cron — sidecar `wpcron` tự gọi
+- ❌ Tắt XML-RPC, chặn user enumeration — mu-plugins tự active
+
+### Nhiều site trên 1 VPS
+
+1. Mỗi site 1 thư mục, 1 port riêng (`9000`, `9001`...) — tên project khác nhau nên
+   container/network không đụng nhau.
+2. **DNS trỏ xong mới chạy certbot** — fail thì wizard không chết, chạy lại sau bằng
+   menu `3) Nginx + SSL`.
+3. Không ghi đè `.env` sau lần `up` đầu (wizard có cảnh báo sẵn).
+4. Vận hành về sau: `cd /opt/my-new-site && ./setup.sh` → menu (status, logs, backup,
+   update images...).
+
+> Tóm gọn: **local = 3 lựa chọn menu (1 → 5 → 2)**; **VPS = thêm domain ở wizard +
+> `y` cho nginx/certbot + 1 dòng crontab backup**.
+
 ## Kiến trúc
 
 ```
