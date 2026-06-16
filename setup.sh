@@ -747,10 +747,7 @@ do_config() {
 	ask c "Chọn" "0"
 	case "$c" in
 		1)
-			cur="$(env_get FRONTEND_ORIGIN)"
-			ask v "FRONTEND_ORIGIN mới (nhiều origin: phẩy)" "$cur"
-			sed -i.bak "s#^FRONTEND_ORIGIN=.*#FRONTEND_ORIGIN=$v#" .env && rm -f .env.bak
-			ok "Đã cập nhật FRONTEND_ORIGIN. Chạy 'up -d' (menu 5) để áp dụng."
+			do_cors
 			;;
 		2)
 			cur="$(env_get WP_SITE_URL)"

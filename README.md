@@ -23,7 +23,7 @@ Lần đầu: chọn **1) Cài đặt mới** (wizard) → **5) Khởi động**
   4) Sửa cấu hình                      8) Logs
                                        9) Cập nhật images
  ── Dữ liệu / Công cụ ────────────────────────────────────────────
-  b) Backup    r) Restore    w) WP-CLI    s) Trạng thái    0) Thoát
+  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS   s) Trạng thái   0) Thoát
 ```
 
 Panel đầu dashboard hiện health từng container (chấm màu), URL, CORS origin.
