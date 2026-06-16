@@ -711,6 +711,28 @@ do_wpcli() {
 # ===========================================================================
 # Sửa cấu hình
 # ===========================================================================
+do_cors() { # Sửa nhanh FRONTEND_ORIGIN — shortcut của do_config option 1
+	if [[ ! -f .env ]]; then
+		err "Chưa có .env — chạy wizard trước (menu 1)."
+		return 1
+	fi
+	local v cur
+	cur="$(env_get FRONTEND_ORIGIN)"
+	info "FRONTEND_ORIGIN hiện tại: ${cur:-(trống)}"
+	ask v "FRONTEND_ORIGIN mới (nhiều origin: phẩy)" "$cur"
+	if [[ "$v" == "$cur" ]]; then
+		info "Không thay đổi."
+		return 0
+	fi
+	sed -i.bak "s#^FRONTEND_ORIGIN=.*#FRONTEND_ORIGIN=$v#" .env && rm -f .env.bak
+	ok "Đã cập nhật FRONTEND_ORIGIN = $v"
+	if [[ -n "$(docker compose ps -q wordpress 2>/dev/null)" ]] && confirm "Up -d lại để áp dụng ngay?"; then
+		docker compose up -d || true
+	else
+		info "Chạy 'up -d' (menu 5) để áp dụng."
+	fi
+}
+
 do_config() {
 	if [[ ! -f .env ]]; then
 		err "Chưa có .env — chạy wizard trước (menu 1)."
@@ -763,7 +785,7 @@ menu_text() {
 	echo "  4) Sửa cấu hình                      8) Logs"
 	echo "                                       9) Cập nhật images"
 	printf '%s ── Dữ liệu / Công cụ ────────────────────────────────────────────%s\n' "$C_DIM" "$C_RST"
-	echo "  b) Backup    r) Restore    w) WP-CLI    s) Trạng thái    0) Thoát"
+	echo "  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS   s) Trạng thái   0) Thoát"
 	echo
 }
 
@@ -790,6 +812,7 @@ dashboard() {
 			b|B) do_backup_menu || true; pause ;;
 			r|R) do_restore || true; pause ;;
 			w|W) do_wpcli || true; pause ;;
+			c|C) do_cors || true; pause ;;
 			s|S) do_status || true; pause ;;
 			0|q|Q) exit 0 ;;
 			*) err "Lựa chọn không hợp lệ."; pause ;;
