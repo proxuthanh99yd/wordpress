@@ -1,5 +1,7 @@
-# Environment variables
+# Sinh tự động bởi wizard (setup.sh) — per-deploy, KHÔNG commit
+# (env.example là bản mẫu tham chiếu, vẫn được track)
 .env
+docker-compose.yml
 
 # MySQL data directory
 mysql-data/

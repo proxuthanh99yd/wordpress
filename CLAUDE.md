@@ -99,4 +99,4 @@ Install plugins: **Redis Object Cache** (then click Enable Object Cache to creat
 
 ## Git-ignored Files
 
-`mysql-data/`, `public_html/wp-content/uploads/`, `public_html/wp-content/cache/`, `.env`, `*.conf` (nginx configs generated per-deploy by setup.sh) — not tracked in git.
+`mysql-data/`, `public_html/wp-content/uploads/`, `public_html/wp-content/cache/`, `.env`, `docker-compose.yml`, `*.conf` — generated per-deploy by the wizard (`.env`/`docker-compose.yml` via `write_env`/`write_compose`, nginx `*.conf` via `render_nginx`), so they are git-ignored. `env.example` is the tracked reference template. The repo tracks only the tool (setup.sh, lib/, wp-init.sh, backup.sh, php-uploads.ini, mu-plugins/), so `git pull` updates the tool without touching a deployment's config.
