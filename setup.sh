@@ -633,6 +633,44 @@ do_status() {
 }
 
 # ===========================================================================
+# Health check — endpoints headless (REST API / WPGraphQL)
+# ===========================================================================
+check_url() { # check_url <nhãn> <url> [curl args...] — in HTTP status có màu
+	local label="$1" url="$2"; shift 2
+	local code
+	# curl tự in '000' qua -w khi không kết nối được; '|| true' để exit lỗi của
+	# curl không kích hoạt set -e làm thoát hàm. fallback khi stdout rỗng.
+	code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$@" "$url" 2>/dev/null || true)"
+	[[ -z "$code" ]] && code=000
+	case "$code" in
+		2*) ok   "$label: HTTP $code — $url" ;;
+		3*) info "$label: HTTP $code (redirect) — $url" ;;
+		*)  err  "$label: HTTP $code — $url" ;;
+	esac
+}
+
+do_healthcheck() {
+	require_config || return 1
+	if ! command -v curl >/dev/null 2>&1; then
+		err "Cần curl để kiểm tra endpoints."
+		return 1
+	fi
+	if [[ -z "$(docker compose ps -q wordpress 2>/dev/null)" ]]; then
+		info "Container wordpress chưa chạy — kết quả có thể là lỗi kết nối (menu 5 để khởi động)."
+	fi
+	local base
+	base="$(env_get WP_SITE_URL)"
+	[[ -z "$base" ]] && base="http://127.0.0.1:$(detect_port)"
+	base="${base%/}"
+	info "Kiểm tra endpoints headless tại: $base"
+	# REST: GET /wp-json/ trả JSON discovery → 200
+	check_url "REST API" "$base/wp-json/"
+	# GraphQL: POST query tối thiểu → 200 nếu WPGraphQL bật, 404 nếu chưa cài
+	check_url "GraphQL " "$base/graphql" \
+		-X POST -H 'Content-Type: application/json' -d '{"query":"{__typename}"}'
+}
+
+# ===========================================================================
 # Dữ liệu / công cụ
 # ===========================================================================
 do_backup_menu() {
@@ -783,7 +821,8 @@ menu_text() {
 	echo "  4) Sửa cấu hình                      8) Logs"
 	echo "                                       9) Cập nhật images"
 	printf '%s ── Dữ liệu / Công cụ ────────────────────────────────────────────%s\n' "$C_DIM" "$C_RST"
-	echo "  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS   s) Trạng thái   0) Thoát"
+	echo "  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS"
+	echo "  s) Trạng thái   h) Health check (REST/GraphQL)   0) Thoát"
 	echo
 }
 
@@ -812,6 +851,7 @@ dashboard() {
 			w|W) do_wpcli || true; pause ;;
 			c|C) do_cors || true; pause ;;
 			s|S) do_status || true; pause ;;
+			h|H) do_healthcheck || true; pause ;;
 			0|q|Q) exit 0 ;;
 			*) err "Lựa chọn không hợp lệ."; pause ;;
 		esac
@@ -827,6 +867,7 @@ Cách dùng:
   ./setup.sh down       # docker compose down
   ./setup.sh restart    # docker compose restart
   ./setup.sh status     # trạng thái chi tiết
+  ./setup.sh health     # kiểm tra endpoints REST/GraphQL
   ./setup.sh backup     # backup DB (thêm --uploads nếu cần)
   ./setup.sh init       # cài WordPress + plugins (wp-init.sh)
   ./setup.sh nginx      # render + cài nginx/SSL
@@ -843,6 +884,7 @@ case "${1:-}" in
 	down)      do_down ;;
 	restart)   do_restart ;;
 	status)    do_status ;;
+	health)    do_healthcheck ;;
 	backup)    shift; ./backup.sh "$@" ;;
 	init)      ./wp-init.sh ;;
 	nginx)     nginx_menu ;;

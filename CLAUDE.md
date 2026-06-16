@@ -71,7 +71,7 @@ Required variables:
 
 ## Key Configuration Files
 
-- **`setup.sh`** — Interactive dashboard (run with no args): install wizard (with optional advanced settings — image tag, upload limit, Redis maxmemory, cron interval, www toggle), up/down/restart/logs/status, backup/restore (restore requires typing `yes`, flushes Redis after), WP-CLI shell, nginx + certbot. Subcommands skip the menu: `./setup.sh wizard|up|down|restart|status|backup|init|nginx`
+- **`setup.sh`** — Interactive dashboard (run with no args): install wizard (with optional advanced settings — image tag, upload limit, Redis maxmemory, cron interval, www toggle), up/down/restart/logs/status, health check (curl REST `/wp-json/` + WPGraphQL `/graphql` against `WP_SITE_URL`), backup/restore (restore requires typing `yes`, flushes Redis after), WP-CLI shell, quick-edit config (`FRONTEND_ORIGIN`/`WP_SITE_URL` via shared `set_env_var`, offers `up -d` to apply), nginx + certbot. Subcommands skip the menu: `./setup.sh wizard|up|down|restart|status|health|backup|init|nginx`
 - **`docker-compose.yml`** — Service definitions, volumes, network. `WORDPRESS_CONFIG_EXTRA` injects: `WP_REDIS_*` constants (Redis Object Cache plugin), X-Forwarded-Proto trust (no redirect loop behind HTTPS proxy), `WP_HOME`/`WP_SITEURL` from `WP_SITE_URL`, `DISALLOW_FILE_EDIT`
 - **`php-uploads.ini`** — PHP tuning: 512M upload/post/memory limit, 600s max execution, OPCache enabled
 - **`wp-init.sh`** — Post-`up` automation: waits for healthy, installs WP-CLI into the container, runs `wp core install`, sets `/%postname%/` permalinks (plain permalinks break `/wp-json`), installs + activates Redis Object Cache (enables drop-in) and WPGraphQL. Idempotent.
