@@ -508,6 +508,35 @@ NGINX
 	ok "Đã ghi ${conf}"
 }
 
+# Cài certbot nếu chưa có (gói distro tự tạo certbot.timer auto-renew).
+# Trả 0 nếu certbot sẵn sàng, 1 nếu không cài được / user từ chối.
+ensure_certbot() {
+	command -v certbot >/dev/null 2>&1 && return 0
+	local SUDO=""
+	[[ "$(id -u)" != "0" ]] && SUDO="sudo"
+	info "Chưa có certbot."
+	if command -v apt-get >/dev/null 2>&1; then
+		confirm "Cài certbot + python3-certbot-nginx bằng apt?" || return 1
+		$SUDO apt-get update -y && $SUDO apt-get install -y certbot python3-certbot-nginx
+	elif command -v dnf >/dev/null 2>&1; then
+		confirm "Cài certbot + python3-certbot-nginx bằng dnf?" || return 1
+		$SUDO dnf install -y certbot python3-certbot-nginx
+	elif command -v yum >/dev/null 2>&1; then
+		confirm "Cài certbot + python3-certbot-nginx bằng yum?" || return 1
+		$SUDO yum install -y certbot python3-certbot-nginx
+	else
+		err "Không nhận diện được trình quản lý gói (apt/dnf/yum)."
+		echo "  Cài thủ công: certbot + python3-certbot-nginx (hoặc: sudo snap install --classic certbot)"
+		return 1
+	fi
+	if command -v certbot >/dev/null 2>&1; then
+		ok "Đã cài certbot."
+		return 0
+	fi
+	err "Cài certbot thất bại."
+	return 1
+}
+
 install_nginx() { # install_nginx <domain> <www y/n> — cài conf + certbot trên VPS
 	# Tách local: set -u + expand trong cùng câu lệnh local làm ${domain} unbound
 	local domain="$1" www="$2"
@@ -542,19 +571,17 @@ install_nginx() { # install_nginx <domain> <www y/n> — cài conf + certbot tr�
 		return 1
 	fi
 
-	if command -v certbot >/dev/null 2>&1; then
-		if confirm "Chạy certbot cấp SSL cho ${domain}?"; then
-			# certbot --nginx tự thêm block 443 + redirect vào conf
-			# shellcheck disable=SC2086
-			$SUDO certbot --nginx $certd || {
-				err "certbot thất bại (DNS chưa trỏ về server? port 80 chưa mở?)."
-				err "Chạy lại sau: $SUDO certbot --nginx $certd"
-			}
-		fi
-	else
-		info "Không tìm thấy certbot. Cài rồi chạy:"
-		echo "  sudo apt install certbot python3-certbot-nginx"
-		echo "  sudo certbot --nginx $certd"
+	if ! ensure_certbot; then
+		info "Bỏ qua SSL. Sau khi có certbot, chạy: $SUDO certbot --nginx $certd"
+		return 0
+	fi
+	if confirm "Chạy certbot cấp SSL cho ${domain}?"; then
+		# certbot --nginx tự thêm block 443 + redirect vào conf
+		# shellcheck disable=SC2086
+		$SUDO certbot --nginx $certd || {
+			err "certbot thất bại (DNS chưa trỏ về server? port 80 chưa mở?)."
+			err "Chạy lại sau: $SUDO certbot --nginx $certd"
+		}
 	fi
 }
 

@@ -63,6 +63,7 @@ Flow mặc định **không** đụng tới `php-uploads.ini`.
 Mật khẩu DB + 8 salts sinh ngẫu nhiên. Trên VPS có nginx, wizard hỏi để tự:
 copy conf vào `sites-available/`, symlink sang `sites-enabled/`, `nginx -t`,
 reload, và chạy `certbot --nginx` cấp SSL (certbot tự thêm block 443).
+Nếu máy chưa có certbot, setup tự cài qua apt/dnf/yum trước khi cấp SSL.
 
 > ⚠️ **Không ghi đè `.env` sau khi đã `up` lần đầu** — MariaDB chỉ nhận user/password
 > ở lần khởi tạo `mysql-data/` đầu tiên; đổi mật khẩu sau đó sẽ gây lỗi đăng nhập DB.
