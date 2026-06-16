@@ -711,27 +711,31 @@ do_wpcli() {
 # ===========================================================================
 # Sửa cấu hình
 # ===========================================================================
-do_cors() { # Sửa nhanh FRONTEND_ORIGIN — shortcut của do_config option 1
+# Sửa 1 biến trong .env (biến env → cần up -d recreate container, không phải restart).
+set_env_var() { # set_env_var KEY "câu hỏi"
+	local key="$1" q="$2" v cur
 	if [[ ! -f .env ]]; then
 		err "Chưa có .env — chạy wizard trước (menu 1)."
 		return 1
 	fi
-	local v cur
-	cur="$(env_get FRONTEND_ORIGIN)"
-	info "FRONTEND_ORIGIN hiện tại: ${cur:-(trống)}"
-	ask v "FRONTEND_ORIGIN mới (nhiều origin: phẩy)" "$cur"
+	cur="$(env_get "$key")"
+	info "$key hiện tại: ${cur:-(trống)}"
+	ask v "$q" "$cur"
 	if [[ "$v" == "$cur" ]]; then
 		info "Không thay đổi."
 		return 0
 	fi
-	sed -i.bak "s#^FRONTEND_ORIGIN=.*#FRONTEND_ORIGIN=$v#" .env && rm -f .env.bak
-	ok "Đã cập nhật FRONTEND_ORIGIN = $v"
+	sed -i.bak "s#^${key}=.*#${key}=$v#" .env && rm -f .env.bak
+	ok "Đã cập nhật $key = $v"
 	if [[ -n "$(docker compose ps -q wordpress 2>/dev/null)" ]] && confirm "Up -d lại để áp dụng ngay?"; then
 		docker compose up -d || true
 	else
 		info "Chạy 'up -d' (menu 5) để áp dụng."
 	fi
 }
+
+# Shortcut sửa nhanh FRONTEND_ORIGIN từ dashboard (menu c)
+do_cors() { set_env_var FRONTEND_ORIGIN "FRONTEND_ORIGIN mới (nhiều origin: phẩy)"; }
 
 do_config() {
 	if [[ ! -f .env ]]; then
@@ -743,17 +747,14 @@ do_config() {
 	echo "  3) Mở .env bằng editor"
 	echo "  4) PHP upload limit / memory / timezone"
 	echo "  0) Quay lại"
-	local c v cur
+	local c
 	ask c "Chọn" "0"
 	case "$c" in
 		1)
-			do_cors
+			set_env_var FRONTEND_ORIGIN "FRONTEND_ORIGIN mới (nhiều origin: phẩy)"
 			;;
 		2)
-			cur="$(env_get WP_SITE_URL)"
-			ask v "WP_SITE_URL mới" "$cur"
-			sed -i.bak "s#^WP_SITE_URL=.*#WP_SITE_URL=$v#" .env && rm -f .env.bak
-			ok "Đã cập nhật WP_SITE_URL. Chạy 'up -d' (menu 5) để áp dụng."
+			set_env_var WP_SITE_URL "WP_SITE_URL mới"
 			;;
 		3)
 			"${EDITOR:-vi}" .env
