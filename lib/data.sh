@@ -59,13 +59,18 @@ ensure_wpcli() {
 	fi
 }
 
-do_wpcli() {
+# Đảm bảo đủ điều kiện chạy wp-cli: có config + container wordpress chạy + phar sẵn sàng
+require_wp() {
 	require_config || return 1
 	if [[ -z "$(docker compose ps -q wordpress 2>/dev/null)" ]]; then
 		err "Container wordpress chưa chạy (menu 5 để khởi động)."
 		return 1
 	fi
 	ensure_wpcli
+}
+
+do_wpcli() {
+	require_wp || return 1
 	info "Nhập lệnh wp (Enter rỗng để quay lại). Vd: plugin list | cache flush | user list"
 	local CMD
 	while true; do

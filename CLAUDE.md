@@ -71,14 +71,15 @@ Required variables:
 
 ## Key Configuration Files
 
-- **`setup.sh`** — Entrypoint only: sets `set -euo pipefail`, `cd`s to its dir, sources `lib/*.sh`, then dispatches the `case "${1:-}"` (subcommands `wizard|up|down|restart|status|health|backup|init|nginx`, no arg = dashboard). All logic lives in **`lib/`** modules (sourced — function defs + default vars only, never run standalone):
+- **`setup.sh`** — Entrypoint only: sets `set -euo pipefail`, `cd`s to its dir, sources `lib/*.sh`, then dispatches the `case "${1:-}"` (subcommands `wizard|up|down|restart|status|health|backup|init|plugins|nginx`, no arg = dashboard). All logic lives in **`lib/`** modules (sourced — function defs + default vars only, never run standalone):
   - `lib/ui.sh` — colors + `err/ok/info/step/ask/confirm/pause/rand/banner`
   - `lib/status.sh` — `svc_dot/detect_project/detect_port/env_get/panel`
   - `lib/wizard.sh` — `*_DEFAULT` vars + `wizard/write_env/write_compose/write_php_ini`
   - `lib/nginx.sh` — `render_nginx/ensure_certbot/install_nginx/nginx_menu` (`ensure_certbot` auto-installs certbot via apt/dnf/yum when missing during SSL setup)
   - `lib/ops.sh` — `require_config/do_up/do_down/do_restart/do_update/do_logs/do_status`
   - `lib/health.sh` — `check_url/check_ssl/do_healthcheck` (curl REST `/wp-json/` + WPGraphQL `/graphql` against `WP_SITE_URL`; on a VPS also checks `certbot.timer` auto-renew + live cert expiry via `openssl`, auto-skipped locally)
-  - `lib/data.sh` — `do_backup_menu/do_restore/wpexec/wpcli/ensure_wpcli/do_wpcli`
+  - `lib/data.sh` — `do_backup_menu/do_restore/wpexec/wpcli/ensure_wpcli/require_wp/do_wpcli` (`require_wp` = config + container running + wp-cli phar ready, shared guard)
+  - `lib/plugins.sh` — `do_plugins` (WP-CLI plugin manager: list/search/install[+activate]/activate/deactivate/delete/update)
   - `lib/config.sh` — `set_env_var/do_cors/do_config` (quick-edit `FRONTEND_ORIGIN`/`WP_SITE_URL` via shared `set_env_var`, offers `up -d` to apply)
   - `lib/menu.sh` — `menu_text/dashboard/usage`
   - Modules share one shell namespace; sourcing order doesn't matter (no top-level execution). Edit the relevant module, not `setup.sh`.

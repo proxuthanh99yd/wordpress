@@ -12,7 +12,7 @@ menu_text() {
 	echo "  4) Sửa cấu hình                      8) Logs"
 	echo "                                       9) Cập nhật images"
 	printf '%s ── Dữ liệu / Công cụ ────────────────────────────────────────────%s\n' "$C_DIM" "$C_RST"
-	echo "  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS"
+	echo "  b) Backup   r) Restore   w) WP-CLI   p) Plugin   c) Sửa CORS"
 	echo "  s) Trạng thái   h) Health check (REST/GraphQL)   0) Thoát"
 	echo
 }
@@ -40,6 +40,7 @@ dashboard() {
 			b|B) do_backup_menu || true; pause ;;
 			r|R) do_restore || true; pause ;;
 			w|W) do_wpcli || true; pause ;;
+			p|P) do_plugins || true; pause ;;
 			c|C) do_cors || true; pause ;;
 			s|S) do_status || true; pause ;;
 			h|H) do_healthcheck || true; pause ;;
@@ -61,6 +62,7 @@ Cách dùng:
   ./setup.sh health     # kiểm tra endpoints REST/GraphQL
   ./setup.sh backup     # backup DB (thêm --uploads nếu cần)
   ./setup.sh init       # cài WordPress + plugins (wp-init.sh)
+  ./setup.sh plugins    # quản lý plugin (list/search/cài/active/gỡ)
   ./setup.sh nginx      # render + cài nginx/SSL
 USAGE
 }

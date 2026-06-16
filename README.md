@@ -23,7 +23,7 @@ Lần đầu: chọn **1) Cài đặt mới** (wizard) → **5) Khởi động**
   4) Sửa cấu hình                      8) Logs
                                        9) Cập nhật images
  ── Dữ liệu / Công cụ ────────────────────────────────────────────
-  b) Backup   r) Restore   w) WP-CLI   c) Sửa CORS
+  b) Backup   r) Restore   w) WP-CLI   p) Plugin   c) Sửa CORS
   s) Trạng thái   h) Health check (REST/GraphQL)   0) Thoát
 ```
 
@@ -31,7 +31,7 @@ Panel đầu dashboard hiện health từng container (chấm màu), URL, CORS o
 Chạy thẳng 1 tác vụ không vào menu (dùng cho script/cron):
 
 ```bash
-./setup.sh wizard|up|down|restart|status|health|backup|init|nginx
+./setup.sh wizard|up|down|restart|status|health|backup|init|plugins|nginx
 ```
 
 ### wp-init.sh làm gì
@@ -72,6 +72,13 @@ Nếu máy chưa có certbot, setup tự cài qua apt/dnf/yum trước khi cấp
 
 Liệt kê backup trong `./backups/`, chọn bản → gõ `yes` xác nhận (ghi đè toàn bộ DB!)
 → tự flush Redis cache sau restore, hỏi restore kèm uploads.
+
+### Plugin (menu p)
+
+Quản lý plugin qua WP-CLI (cần container `wordpress` đang chạy). Submenu: liệt kê
+đã cài, tìm trên wordpress.org (`search`), cài đặt (kèm tuỳ chọn kích hoạt ngay),
+kích hoạt, vô hiệu hoá, gỡ bỏ (xác nhận trước khi xoá), cập nhật (một slug hoặc tất
+cả). Thao tác theo **slug** (vd `wordpress-seo`, `wp-graphql`).
 
 ## Workflow tạo site mới
 
