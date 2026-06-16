@@ -71,7 +71,17 @@ Required variables:
 
 ## Key Configuration Files
 
-- **`setup.sh`** — Interactive dashboard (run with no args): install wizard (with optional advanced settings — image tag, upload limit, Redis maxmemory, cron interval, www toggle), up/down/restart/logs/status, health check (curl REST `/wp-json/` + WPGraphQL `/graphql` against `WP_SITE_URL`; on a VPS also checks `certbot.timer` auto-renew + live cert expiry via `openssl`, auto-skipped locally), backup/restore (restore requires typing `yes`, flushes Redis after), WP-CLI shell, quick-edit config (`FRONTEND_ORIGIN`/`WP_SITE_URL` via shared `set_env_var`, offers `up -d` to apply), nginx + certbot (`ensure_certbot` auto-installs certbot via apt/dnf/yum when missing during SSL setup). Subcommands skip the menu: `./setup.sh wizard|up|down|restart|status|health|backup|init|nginx`
+- **`setup.sh`** — Entrypoint only: sets `set -euo pipefail`, `cd`s to its dir, sources `lib/*.sh`, then dispatches the `case "${1:-}"` (subcommands `wizard|up|down|restart|status|health|backup|init|nginx`, no arg = dashboard). All logic lives in **`lib/`** modules (sourced — function defs + default vars only, never run standalone):
+  - `lib/ui.sh` — colors + `err/ok/info/step/ask/confirm/pause/rand/banner`
+  - `lib/status.sh` — `svc_dot/detect_project/detect_port/env_get/panel`
+  - `lib/wizard.sh` — `*_DEFAULT` vars + `wizard/write_env/write_compose/write_php_ini`
+  - `lib/nginx.sh` — `render_nginx/ensure_certbot/install_nginx/nginx_menu` (`ensure_certbot` auto-installs certbot via apt/dnf/yum when missing during SSL setup)
+  - `lib/ops.sh` — `require_config/do_up/do_down/do_restart/do_update/do_logs/do_status`
+  - `lib/health.sh` — `check_url/check_ssl/do_healthcheck` (curl REST `/wp-json/` + WPGraphQL `/graphql` against `WP_SITE_URL`; on a VPS also checks `certbot.timer` auto-renew + live cert expiry via `openssl`, auto-skipped locally)
+  - `lib/data.sh` — `do_backup_menu/do_restore/wpexec/wpcli/ensure_wpcli/do_wpcli`
+  - `lib/config.sh` — `set_env_var/do_cors/do_config` (quick-edit `FRONTEND_ORIGIN`/`WP_SITE_URL` via shared `set_env_var`, offers `up -d` to apply)
+  - `lib/menu.sh` — `menu_text/dashboard/usage`
+  - Modules share one shell namespace; sourcing order doesn't matter (no top-level execution). Edit the relevant module, not `setup.sh`.
 - **`docker-compose.yml`** — Service definitions, volumes, network. `WORDPRESS_CONFIG_EXTRA` injects: `WP_REDIS_*` constants (Redis Object Cache plugin), X-Forwarded-Proto trust (no redirect loop behind HTTPS proxy), `WP_HOME`/`WP_SITEURL` from `WP_SITE_URL`, `DISALLOW_FILE_EDIT`
 - **`php-uploads.ini`** — PHP tuning: 512M upload/post/memory limit, 600s max execution, OPCache enabled
 - **`wp-init.sh`** — Post-`up` automation: waits for healthy, installs WP-CLI into the container, runs `wp core install`, sets `/%postname%/` permalinks (plain permalinks break `/wp-json`), installs + activates Redis Object Cache (enables drop-in) and WPGraphQL. Idempotent.
