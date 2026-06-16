@@ -71,8 +71,8 @@ Required variables:
 
 ## Key Configuration Files
 
-- **`setup.sh`** — Entrypoint only: sets `set -euo pipefail`, `cd`s to its dir, sources `lib/*.sh`, then dispatches the `case "${1:-}"` (subcommands `wizard|up|down|restart|status|health|backup|init|plugins|nginx`, no arg = dashboard). All logic lives in **`lib/`** modules (sourced — function defs + default vars only, never run standalone):
-  - `lib/ui.sh` — colors + `err/ok/info/step/ask/confirm/pause/rand/banner`
+- **`setup.sh`** — Entrypoint only: sets `set -euo pipefail`, `cd`s to its dir, sources `lib/*.sh`, then dispatches the `case "${1:-}"` (subcommands `wizard|up|down|restart|status|health|backup|init|plugins|nginx|ui`, no arg = dashboard). All logic lives in **`lib/`** modules (sourced — function defs + default vars only, never run standalone):
+  - `lib/ui.sh` — colors + `err/ok/info/step/ask/confirm/pause/rand/banner` + a **gum layer**: `has_gum` (gum present **and** interactive TTY, cached) gates `ask`/`confirm`/`banner`/`ui_menu` (arrow-key `gum choose`) to gum, else they fall back to the plain-ANSI path. `ensure_gum` offers to install gum via brew / Charm apt repo / Charm yum repo (subcommand `ui`)
   - `lib/status.sh` — `svc_dot/detect_project/detect_port/env_get/panel`
   - `lib/wizard.sh` — `*_DEFAULT` vars + `wizard/write_env/write_compose/write_php_ini`
   - `lib/nginx.sh` — `render_nginx/ensure_certbot/install_nginx/nginx_menu` (`ensure_certbot` auto-installs certbot via apt/dnf/yum when missing during SSL setup)
@@ -81,7 +81,7 @@ Required variables:
   - `lib/data.sh` — `do_backup_menu/do_restore/wpexec/wpcli/ensure_wpcli/require_wp/do_wpcli` (`require_wp` = config + container running + wp-cli phar ready, shared guard)
   - `lib/plugins.sh` — `do_plugins` (WP-CLI plugin manager: list/search/install[+activate]/activate/deactivate/delete/update)
   - `lib/config.sh` — `set_env_var/do_cors/do_config` (quick-edit `FRONTEND_ORIGIN`/`WP_SITE_URL` via shared `set_env_var`, offers `up -d` to apply)
-  - `lib/menu.sh` — `menu_text/dashboard/usage`
+  - `lib/menu.sh` — `menu_text/dashboard/usage` (+ `DASH_LABELS`; dashboard uses `ui_menu` when gum is present, else the lettered `menu_text` prompt — both feed one `case` via the `<code>) ` label prefix)
   - Modules share one shell namespace; sourcing order doesn't matter (no top-level execution). Edit the relevant module, not `setup.sh`.
 - **`docker-compose.yml`** — Service definitions, volumes, network. `WORDPRESS_CONFIG_EXTRA` injects: `WP_REDIS_*` constants (Redis Object Cache plugin), X-Forwarded-Proto trust (no redirect loop behind HTTPS proxy), `WP_HOME`/`WP_SITEURL` from `WP_SITE_URL`, `DISALLOW_FILE_EDIT`
 - **`php-uploads.ini`** — PHP tuning: 512M upload/post/memory limit, 600s max execution, OPCache enabled

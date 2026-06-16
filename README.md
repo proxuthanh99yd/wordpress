@@ -25,14 +25,20 @@ Lần đầu: chọn **1) Cài đặt mới** (wizard) → **5) Khởi động**
  ── Dữ liệu / Công cụ ────────────────────────────────────────────
   b) Backup   r) Restore   w) WP-CLI   p) Plugin   c) Sửa CORS
   s) Trạng thái   h) Health check (REST/GraphQL)   0) Thoát
+  Mẹo: cài gum để menu chọn bằng phím ↑↓ → ./setup.sh ui
 ```
 
 Panel đầu dashboard hiện health từng container (chấm màu), URL, CORS origin.
 Chạy thẳng 1 tác vụ không vào menu (dùng cho script/cron):
 
 ```bash
-./setup.sh wizard|up|down|restart|status|health|backup|init|plugins|nginx
+./setup.sh wizard|up|down|restart|status|health|backup|init|plugins|nginx|ui
 ```
+
+> **Menu đẹp hơn (tuỳ chọn):** cài [`gum`](https://github.com/charmbracelet/gum)
+> để menu (dashboard + quản lý plugin) chọn bằng phím **↑↓** thay vì gõ số.
+> Chạy `./setup.sh ui` (tự cài qua brew / apt / yum). Không có gum thì dashboard
+> vẫn chạy bình thường ở chế độ chữ/số — **không bắt buộc**, zero-dependency.
 
 ### wp-init.sh làm gì
 
