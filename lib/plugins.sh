@@ -4,33 +4,44 @@
 # ===========================================================================
 # Quản lý plugin (qua WP-CLI trong container)
 # ===========================================================================
+
+# Decode vài HTML entity hay gặp trong tên plugin (search) về ASCII cho dễ đọc.
+# Dùng cho cột cuối cùng nên có rút ngắn cũng không làm lệch các cột trước.
+plugin_decode_entities() {
+	sed -e 's/&amp;/\&/g; s/&#0*38;/\&/g' \
+	    -e 's/&#8211;/-/g; s/&#8212;/-/g' \
+	    -e "s/&#8217;/'/g; s/&#8216;/'/g; s/&#0*39;/'/g" \
+	    -e 's/&#8220;/"/g; s/&#8221;/"/g; s/&quot;/"/g'
+}
+
 do_plugins() {
 	require_wp || return 1
 	local c slug term
 	while true; do
+		[[ -t 1 ]] && clear
+		printf '%s── Quản lý plugin (WP-CLI) ──────────────────%s\n\n' "$C_BLD" "$C_RST"
+		echo "  1) Danh sách đã cài          5) Vô hiệu hoá"
+		echo "  2) Tìm trên wordpress.org    6) Gỡ bỏ"
+		echo "  3) Cài đặt (+kích hoạt)      7) Cập nhật"
+		echo "  4) Kích hoạt                 0) Quay lại"
 		echo
-		printf '%s── Quản lý plugin ──────────────────────────%s\n' "$C_DIM" "$C_RST"
-		echo "  1) Danh sách đã cài (list)"
-		echo "  2) Tìm trên wordpress.org (search)"
-		echo "  3) Cài đặt (install [+ kích hoạt])"
-		echo "  4) Kích hoạt (activate)"
-		echo "  5) Vô hiệu hoá (deactivate)"
-		echo "  6) Gỡ bỏ (delete)"
-		echo "  7) Cập nhật (update)"
-		echo "  0) Quay lại"
 		ask c "Chọn" "0"
+		echo
 		case "$c" in
 			1)
-				wpcli plugin list || true
+				wpcli plugin list --fields=name,status,version,update --format=table || true
 				;;
 			2)
 				ask term "Từ khoá tìm" ""
-				[[ -z "$term" ]] && { info "Bỏ qua."; continue; }
-				wpcli plugin search "$term" --fields=name,slug,rating,num_ratings --per-page=20 || true
+				[[ -z "$term" ]] && continue
+				echo
+				# slug đứng đầu (dễ copy đi cài), name để cuối (đã decode entity)
+				wpcli plugin search "$term" --fields=slug,rating,name --per-page=10 --format=table \
+					| plugin_decode_entities || true
 				;;
 			3)
 				ask slug "Slug plugin cần cài (vd: wordpress-seo)" ""
-				[[ -z "$slug" ]] && { info "Bỏ qua."; continue; }
+				[[ -z "$slug" ]] && continue
 				if confirm "Kích hoạt luôn sau khi cài?"; then
 					wpcli plugin install "$slug" --activate || true
 				else
@@ -39,17 +50,17 @@ do_plugins() {
 				;;
 			4)
 				ask slug "Slug plugin cần kích hoạt" ""
-				[[ -z "$slug" ]] && { info "Bỏ qua."; continue; }
+				[[ -z "$slug" ]] && continue
 				wpcli plugin activate "$slug" || true
 				;;
 			5)
 				ask slug "Slug plugin cần vô hiệu hoá" ""
-				[[ -z "$slug" ]] && { info "Bỏ qua."; continue; }
+				[[ -z "$slug" ]] && continue
 				wpcli plugin deactivate "$slug" || true
 				;;
 			6)
 				ask slug "Slug plugin cần gỡ bỏ" ""
-				[[ -z "$slug" ]] && { info "Bỏ qua."; continue; }
+				[[ -z "$slug" ]] && continue
 				confirm "Gỡ bỏ '$slug'? (xoá file plugin, không hoàn tác được)" || continue
 				# delete yêu cầu plugin đã tắt; tắt trước cho chắc (bỏ qua nếu vốn đã tắt)
 				wpcli plugin deactivate "$slug" 2>/dev/null || true
@@ -66,5 +77,6 @@ do_plugins() {
 			0|"") return 0 ;;
 			*) err "Lựa chọn không hợp lệ." ;;
 		esac
+		pause
 	done
 }
