@@ -4,6 +4,27 @@
 # ===========================================================================
 # Dashboard
 # ===========================================================================
+# Nhãn cho menu gum (tiền tố "<mã>) " để tách lại mã bằng ${sel%%)*} → dùng chung case)
+DASH_LABELS=(
+	"1) Cài đặt mới (wizard)"
+	"2) Cài WordPress + plugins"
+	"3) Nginx + SSL (certbot)"
+	"4) Sửa cấu hình"
+	"5) Khởi động (up -d)"
+	"6) Dừng (down)"
+	"7) Restart"
+	"8) Logs"
+	"9) Cập nhật images"
+	"b) Backup"
+	"r) Restore"
+	"w) WP-CLI"
+	"p) Quản lý plugin"
+	"c) Sửa CORS"
+	"s) Trạng thái"
+	"h) Health check (REST/GraphQL)"
+	"0) Thoát"
+)
+
 menu_text() {
 	printf '%s ── Cài đặt ──────────────────%s        %s── Vận hành ─────────────────%s\n' "$C_DIM" "$C_RST" "$C_DIM" "$C_RST"
 	echo "  1) Cài đặt mới (wizard)              5) Khởi động (up -d)"
@@ -14,20 +35,27 @@ menu_text() {
 	printf '%s ── Dữ liệu / Công cụ ────────────────────────────────────────────%s\n' "$C_DIM" "$C_RST"
 	echo "  b) Backup   r) Restore   w) WP-CLI   p) Plugin   c) Sửa CORS"
 	echo "  s) Trạng thái   h) Health check (REST/GraphQL)   0) Thoát"
+	printf '%s  Mẹo: cài gum để menu chọn bằng phím ↑↓ → ./setup.sh ui%s\n' "$C_DIM" "$C_RST"
 	echo
 }
 
 dashboard() {
-	local choice
+	local choice sel
 	while true; do
 		[[ -t 1 ]] && clear
 		banner
 		panel
-		menu_text
-		printf '%sChọn%s: ' "$C_CYN" "$C_RST"
-		read -r choice || exit 0
+		if has_gum; then
+			sel="$(ui_menu "Chọn thao tác" "${DASH_LABELS[@]}")"
+			if [[ -z "$sel" ]]; then choice=""; else choice="${sel%%)*}"; fi
+		else
+			menu_text
+			printf '%sChọn%s: ' "$C_CYN" "$C_RST"
+			read -r choice || exit 0
+		fi
 		echo
 		case "$choice" in
+			"") continue ;;
 			1) wizard || true; pause ;;
 			2) ./wp-init.sh || true; pause ;;
 			3) nginx_menu || true; pause ;;
@@ -64,6 +92,7 @@ Cách dùng:
   ./setup.sh init       # cài WordPress + plugins (wp-init.sh)
   ./setup.sh plugins    # quản lý plugin (list/search/cài/active/gỡ)
   ./setup.sh nginx      # render + cài nginx/SSL
+  ./setup.sh ui         # cài gum để menu đẹp hơn (chọn bằng phím ↑↓)
 USAGE
 }
 

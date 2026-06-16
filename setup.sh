@@ -4,7 +4,7 @@
 #
 #   ./setup.sh            # mở dashboard (menu tương tác)
 #   ./setup.sh wizard     # chạy thẳng wizard cài đặt mới
-#   ./setup.sh up|down|restart|status|health|backup|init|plugins|nginx
+#   ./setup.sh up|down|restart|status|health|backup|init|plugins|nginx|ui
 #                         # chạy thẳng 1 tác vụ, không vào menu
 #
 # Kiến trúc: wp-init.sh (cài WP + plugins) và backup.sh (dump DB/uploads)
@@ -35,6 +35,7 @@ case "${1:-}" in
 	init)      ./wp-init.sh ;;
 	plugins)   do_plugins ;;
 	nginx)     nginx_menu ;;
+	ui)        ensure_gum ;;
 	-h|--help|help) usage ;;
 	*)         err "Lệnh không hợp lệ: $1"; usage; exit 1 ;;
 esac
