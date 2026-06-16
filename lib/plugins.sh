@@ -14,18 +14,36 @@ plugin_decode_entities() {
 	    -e 's/&#8220;/"/g; s/&#8221;/"/g; s/&quot;/"/g'
 }
 
+# Nhãn menu (tiền tố "<mã>) " để cả 2 chế độ gum/ANSI dùng chung 1 case bên dưới)
+PLUGIN_LABELS=(
+	"1) Danh sách đã cài"
+	"2) Tìm trên wordpress.org"
+	"3) Cài đặt (+kích hoạt)"
+	"4) Kích hoạt"
+	"5) Vô hiệu hoá"
+	"6) Gỡ bỏ"
+	"7) Cập nhật"
+	"0) Quay lại"
+)
+
 do_plugins() {
 	require_wp || return 1
-	local c slug term
+	local c slug term sel
 	while true; do
 		[[ -t 1 ]] && clear
-		printf '%s── Quản lý plugin (WP-CLI) ──────────────────%s\n\n' "$C_BLD" "$C_RST"
-		echo "  1) Danh sách đã cài          5) Vô hiệu hoá"
-		echo "  2) Tìm trên wordpress.org    6) Gỡ bỏ"
-		echo "  3) Cài đặt (+kích hoạt)      7) Cập nhật"
-		echo "  4) Kích hoạt                 0) Quay lại"
-		echo
-		ask c "Chọn" "0"
+		if has_gum; then
+			sel="$(ui_menu "Quản lý plugin (WP-CLI)" "${PLUGIN_LABELS[@]}")"
+			[[ -z "$sel" ]] && return 0   # Esc = quay lại
+			c="${sel%%)*}"
+		else
+			printf '%s── Quản lý plugin (WP-CLI) ──────────────────%s\n\n' "$C_BLD" "$C_RST"
+			echo "  1) Danh sách đã cài          5) Vô hiệu hoá"
+			echo "  2) Tìm trên wordpress.org    6) Gỡ bỏ"
+			echo "  3) Cài đặt (+kích hoạt)      7) Cập nhật"
+			echo "  4) Kích hoạt                 0) Quay lại"
+			echo
+			ask c "Chọn" "0"
+		fi
 		echo
 		case "$c" in
 			1)
